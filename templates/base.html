@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles/header.css') }}">
+
+    <title>{% block title %}My Site{% endblock %}</title>
+</head>
+
+<body>
+
+<header>
+  <ul class="barItem">
+      <li><a href="">HOME</a></li>
+      <li><a href="">boats</a></li>
+      <li><a href="">update</a></li>
+      <li><a href="">delete</a></li>
+  </ul>
+
+  <button class="barItem input" style="margin-left:10px;">
+      <a href="#">SIGNUP</a>
+  </button>
+</header>
+
+
+{% block body %}
+{% endblock %}
+
+
+<footer class="footer">
+  <h1 class="footer__logo">A very cool looking footer!</h1>
+</footer>
+
+</body>
+</html>
+
+

@@ -3,5 +3,25 @@
 {% block title %}test table{% endblock %}
 {%block content%}
 
-<h1>fksfpdagmadgfmsaspm!!!!</h1>
+<h1> test create </h1>
+
+
+<div>
+    <h2>new test </h2>
+    <form action="/test_create" method="POST">
+        <input type="text" name="title" placeholder="enter your test name?" class="input_field " ><br>
+        <input type="text" name="test_disc" placeholder="enter your test discrption?" class="input_field " ><br>
+        <input type="text" name="created_by" placeholder="enter your name?" class="input_field " ><br>
+        <button type="submit">create</button>
+    </form>
+</div>
+
+
+<div>
+    <h2>delete</h2>
+    <form action="/delete" method="POST">
+    <input type="text" name="test_id" placeholder="test_id" required>
+    <button type="submit">Delete test</button>
+</form>
+</div>
 {%endblock%}

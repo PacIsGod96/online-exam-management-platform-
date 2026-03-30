@@ -1,4 +1,31 @@
-{%extend "base.html"%}
+{%extends"base.html"%}
 
-{%block body%}
+
+{% block title %}test page{% endblock %}
+{%block content%}
+<h1>test page</h1>
+
+<table class="table1">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Created By</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for test in tests %}
+        <tr>
+            <td>{{ test.test_id }}</td>
+            <td>{{ test.title }}</td>
+            <td>{{ test.test_disc }}</td>
+            <td>{{ test.created_by }}</td>
+            <td>{{ test.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
 {%endblock%}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/final.css') }}">
+
+    <title>{% block title %}My Site{% endblock %}</title>
+</head>
+
+<body>
+
+<header>
+  <ul class="barItem">
+      <li><a href="{{ url_for('register') }}">register</a></li>
+      <li><a href="{{ url_for('all_acount') }}">all accounts</a></li>
+      <li><a href="{{ url_for('test_create') }}">test create</a></li>
+      <li><a href="{{ url_for('test_page') }}">test page</a></li>
+      <li><a href="{{ url_for('test_taken') }}">test taken</a></li>
+  </ul>
+</header>
+
+<main>
+{% block content %}
+{% endblock %}
+</main>
+
+<footer class="footer">
+  <h1 class="footer__logo">da footer!</h1>
+</footer>
+
+</body>
+</html>
+
+

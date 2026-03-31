@@ -61,7 +61,7 @@ def login():
         if stored_password == password:
             return redirect(url_for('test_page'))
         else:
-            return "Incoorect password"
+            return "Incorrect password"
     else:
         return "Username not found"
 

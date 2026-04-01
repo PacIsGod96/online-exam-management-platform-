@@ -1,25 +1,84 @@
 {%extends "base.html"%}
 
 {% block title %}All Accounts{% endblock %}
-{%block body%}
+{%block content%}
+<style>
+.table-container {
+    width: 700px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 3px solid #1f2933;
+    border-radius: 20px;
+    background-color: #f8f8f8;
+    box-sizing: border-box;
+}
 
 
+.table-container h1 {
+    text-align: center;
+    color: #1f2933;
+
+}
+
+
+.table-container button {
+    background-color: #1f2933;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    margin: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.table-container button:hover {
+    background-color: #38f85e;
+    color: black;
+}
+
+.table1 {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.table1 th, .table1 td {
+    border: 1px solid #1f2933;
+    padding: 8px;
+    text-align: center;
+}
+
+.table1 th {
+    background-color: #1f2933;
+    color: white;
+}
+
+</style>
+<div class="table_container">
     <h1>All Accounts</h1>
+    <a href="/all_acount"><button>All Accounts</button></a>
+    <a href="/all_acount?role=student"><button>Students</button></a>
+    <a href="/all_acount?role=teacher"><button>Teachers</button></a>
     <table class="table1">
         <tr>
             <th>ID</th>
             <th>Username</th>
-            <th>Created At</th>
+            <th>Role</th>
+            <th>Teacher ID</th>
+            <th>Student ID</th>
         </tr>
         {% for account in accounts %}
         <tr>
             <td>{{ account.account_id }}</td>
             <td>{{ account.username }}</td>
-            <td>{{ account.created_at }}</td>
+            <td>{{ account.role }}</td>
+            <td>{{ account.teacher_id }}</td>
+            <td>{{ account.student_id }}</td>
         </tr>
         {% endfor %}
     </table>
-
+</div>
 
 
 {%endblock%}

@@ -8,7 +8,7 @@
 
 <div>
     <h2>new test </h2>
-    <form action="/test_create" method="POST">
+    <form action="{{ url_for('test_create', user_id=user['account_id']) }}" method="POST">
         <input type="text" name="title" placeholder="enter your test name?" class="input_field " ><br>
         <input type="text" name="test_disc" placeholder="enter your test discrption?" class="input_field " ><br>
         <input type="text" name="created_by" placeholder="enter your name?" class="input_field " ><br>
@@ -19,12 +19,11 @@
 
 <div>
     <h2>delete</h2>
-    <form action="/delete" method="POST">
+    <form action="{{ url_for('delete', user_id=user['account_id']) }}" method="POST">
     <input type="text" name="test_id" placeholder="test_id" required>
     <button type="submit">Delete test</button>
 </form>
 </div>
-
 
 
 

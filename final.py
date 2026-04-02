@@ -170,6 +170,9 @@ def logout():
 
 
 
+
+
+
 @app.route('/add_question/<int:user_id>', methods=['GET', 'POST'])
 def add_question(user_id):
     user = conn.execute(
@@ -194,7 +197,7 @@ def add_question(user_id):
             text("INSERT INTO test_questions (test_id, question_id) VALUES (:test_id, :question_id)"),
             {"test_id": test_id, "question_id": question_id}
         )
-        
+
         questions = conn.execute(
             text("""SELECT q.* FROM questions q
                     JOIN test_questions tq ON q.question_id = tq.question_id

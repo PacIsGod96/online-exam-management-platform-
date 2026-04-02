@@ -12,11 +12,16 @@
 
 <header>
   <ul class="barItem">
-      <li><a href="{{ url_for('register') }}">register</a></li>
-      <li><a href="{{ url_for('all_acount') }}">all accounts</a></li>
-      <li><a href="{{ url_for('test_create') }}">test create</a></li>
-      <li><a href="{{ url_for('test_page') }}">test page</a></li>
-      <li><a href="{{ url_for('test_taken') }}">test taken</a></li>
+    {% if user %}
+    {% if user['role'] == 'teacher' %}
+        <li><a href="{{ url_for('all_acount', user_id=user['account_id']) }}">All Accounts</a></li>
+        <li><a href="{{ url_for('test_taken', user_id=user['account_id']) }}">Test Taken</a></li>
+        <li><a href="{{ url_for('test_create', user_id=user['account_id']) }}">Test Create</a></li>
+        <li><a href="{{ url_for('add_question', user_id=user['account_id']) }}">Add Question</a></li>
+    {% endif %}
+    <li><a href="{{ url_for('test_page', user_id=user['account_id']) }}">Test Page</a></li>
+    <li><a href="{{ url_for('logout') }}">Logout</a></li>
+    {% endif %}
   </ul>
 </header>
 

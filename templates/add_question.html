@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Add Questions{% endblock %}
+
+{% block content %}
+<h1>Add Open-Ended Questions</h1>
+
+<form action="{{ url_for('add_question', user_id=user['account_id']) }}" method="POST">
+    <label>Test ID:</label><br>
+    <input type="number" name="test_id" placeholder="Enter Test ID" required><br><br>
+
+    <label>Question Text:</label><br>
+    <textarea name="question_text" rows="4" cols="50" placeholder="Enter your question" required></textarea><br><br>
+
+    <label>Points:</label><br>
+    <input type="number" name="points" min="1" required><br><br>
+
+    <button type="submit">Add Question</button>
+</form>
+
+<h2>Existing Questions for this Test</h2>
+<ul>
+    {% for q in questions %}
+        <li>{{ q.question_text }} — {{ q.points }} points</li>
+    {% endfor %}
+</ul>
+{% endblock %}

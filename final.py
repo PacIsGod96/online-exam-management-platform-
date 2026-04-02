@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, url_for, redirect
+
+from flask import Flask, render_template, request, url_for, redirect,session
 from sqlalchemy import create_engine,text
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -10,7 +12,7 @@ conn = engine.connect()
 
 @app.route('/', methods = ['GET'])
 def register():
-    return  render_template("index.html") 
+    return  render_template("index.html",user=None) 
 
 @app.route('/', methods = ['POST'])
 def register_post():
@@ -46,41 +48,166 @@ def register_post():
     })
     conn.commit()
 
-    return render_template("index.html")
+    return render_template("index.html",user=None)
 
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form['login_username']
     password = request.form['login_password']
 
-    sql = text("SELECT username, password_hash FROM accounts WHERE username = :username")
-    result = conn.execute(sql, {'username': username}).fetchone()
+    sql = text("SELECT account_id,username, password_hash FROM accounts WHERE username = :username")
+    result = conn.execute(sql, {'username': username}).mappings().fetchone()
 
     if result:
-        stored_password = result[1]
+        account_id = result['account_id'] 
+        stored_password = result['password_hash']
         if stored_password == password:
-            return redirect(url_for('test_page'))
+            return redirect(url_for('test_page',user_id=account_id))
         else:
             return "Incorrect password"
     else:
         return "Username not found"
 
-@app.route('/all_acount')
-def all_acount():
-    return  render_template("all_acount.html") 
 
-@app.route('/test_create')
-def test_create():
-    return render_template("test_create.html")
 
-@app.route('/test_page',methods =["GET"])
-def test_page():
-    result = conn.execute(text("SELECT * FROM tests ORDER BY created_at DESC")).fetchall()
-    return render_template("test_page.html",tests = result)
 
-@app.route('/test_taken')
-def test_taken():
-    return render_template("test_taken.html")
+
+
+@app.route('/all_acount/<int:user_id>')
+def all_acount(user_id):
+    role = request.args.get("role")
+    user = conn.execute(
+        text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+        {"id": user_id}
+    ).mappings().fetchone()
+    if role:
+        sql = text("""
+            SELECT *
+            FROM accounts
+            WHERE role = :role
+            ORDER BY account_id DESC
+        """)
+        result = conn.execute(sql, {"role": role}).fetchall()
+    else:
+        result = conn.execute(
+            text("SELECT * FROM accounts ORDER BY account_id DESC")
+        ).fetchall()
+
+    return render_template("all_acount.html", accounts=result,user=user)
+
+
+
+
+
+@app.route('/test_page/<int:user_id>',methods =["GET"])
+def test_page(user_id):
+    user = conn.execute(
+    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+    {"id": user_id}
+    ).mappings().fetchone()
+    result = conn.execute(text("SELECT * FROM tests ORDER BY test_id DESC")).fetchall()
+    return render_template("test_page.html",tests=result,user=user)
+
+
+
+
+
+@app.route('/test_taken/<int:user_id>')
+def test_taken(user_id):
+    user = conn.execute(
+    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+    {"id": user_id}
+    ).mappings().fetchone()
+    return render_template("test_taken.html",user=user)
+
+
+
+
+
+
+
+@app.route('/test_create/<int:user_id>',methods=["GET", "POST"])
+def test_create(user_id):
+    user = conn.execute(
+    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+    {"id": user_id}
+    ).mappings().fetchone()
+    if request.method == "POST":
+        title = request.form["title"]
+        test_disc = request.form ["test_disc"]
+        created_by = request.form ["created_by"]
+
+        conn.execute(
+            text(
+                "INSERT INTO tests (title, test_disc, created_by) "
+                "VALUES (:title, :test_disc, :created_by)"
+            ),
+            {"title": title, "test_disc": test_disc, "created_by": created_by}
+        )
+    return render_template("test_create.html",user=user)
+
+
+
+
+
+@app.route('/delete/<int:user_id>', methods =["POST"])
+def delete(user_id):
+    test_id = request.form['test_id']
+    user = conn.execute(
+    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+    {"id": user_id}
+    ).mappings().fetchone()
+    conn.execute(
+        text("DELETE FROM tests WHERE test_id = :test_id"),
+        {"test_id": test_id}
+    )
+    return  redirect (url_for("test_page", user_id=user['account_id'])) 
+
+
+@app.route('/logout')
+def logout(): 
+    return redirect(url_for('register'))
+
+
+
+
+
+# 2️⃣ Add Question
+@app.route('/add_question/<int:user_id>', methods=['GET', 'POST'])
+def add_question(user_id):
+    user = conn.execute(
+        text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+        {"id": user_id}
+    ).mappings().fetchone()
+
+    questions = []
+
+    if request.method == "POST":
+        test_id = int(request.form['test_id'])
+        question_text = request.form['question_text']
+        points = int(request.form['points'])
+
+        result = conn.execute(
+            text("INSERT INTO questions (question_text, question_type, points) VALUES (:text, 'Short Answer', :points)"),
+            {"text": question_text, "points": points}
+        )
+        question_id = result.lastrowid
+
+        conn.execute(
+            text("INSERT INTO test_questions (test_id, question_id) VALUES (:test_id, :question_id)"),
+            {"test_id": test_id, "question_id": question_id}
+        )
+
+        # Fetch questions for that test
+        questions = conn.execute(
+            text("""SELECT q.* FROM questions q
+                    JOIN test_questions tq ON q.question_id = tq.question_id
+                    WHERE tq.test_id = :test_id
+                    ORDER BY tq.question_order"""),
+            {"test_id": test_id}
+        ).fetchall()
+
+    return render_template("add_question.html", user=user, questions=questions)
 
 
 if __name__ == '__main__':

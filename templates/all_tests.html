@@ -1,0 +1,21 @@
+{%extends "base.html"%}
+
+{% block title %}test taken{% endblock %}
+
+{%block content%}
+<h1>Available Tests</h1>
+<ul>
+    {% for test in tests %}
+        <li>
+            {{ test.title}} by {{ test.created_by}}
+            {% if user.role == 'student' %}
+                {% if test.test_id in taken_tests %}
+                    - Already Taken
+                {% else %}
+                    <a href="{{ url_for('take_test', student_id=user.account_id, test_id=test.test_id) }}">Take Test</a>
+                {% endif %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+{%endblock%}

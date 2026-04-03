@@ -7,6 +7,10 @@ body {
     font-family: Arial, sans-serif;
 }
 
+main {
+    flex: 1;
+}
+
 header {
     background-color: #1f2933;
     color: white;

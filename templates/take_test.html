@@ -1,0 +1,36 @@
+{%extends "base.html"%}
+
+{% block title %}test taken{% endblock %}
+
+{%block content%}
+<form method="POST" action="{{ url_for('take_test', student_id=user.account_id, test_id=test_id) }}">
+    {% for qid, q in questions.items() %}
+        <div style="margin-bottom: 20px;">
+            <p><strong>Question {{ loop.index }}:</strong> {{ q.text }} </p>
+
+            {% if q.type == 'MCQ' %}
+                {% for a in q.answers %}
+                    <label>
+                        <input type="radio" name="q_{{ qid }}" value="{{ a.id }}" required>
+                        {{ a.text }} <br>
+                    </label><br>
+                {% endfor %}
+
+            {% elif q.type == 'True/False' %}
+                <label>
+                    <input type="radio" name="q_{{ qid }}" value="True" required> True
+                </label><br>
+                <label>
+                    <input type="radio" name="q_{{ qid }}" id="False"> False
+                </label><br>
+            
+            {% else %}
+                <input type="text" name="q_{{ qid }}" placeholder="Enter your answer" required>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <button type="submit">Submit Test</button>
+</form>
+
+{%endblock%}

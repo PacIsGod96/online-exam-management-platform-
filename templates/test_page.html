@@ -22,9 +22,18 @@
             <td>{{ test.test_disc }}</td>
             <td>{{ test.created_by }}</td>
             <td>{{ test.created_at }}</td>
+            <td>
+                {% if user.role == 'teacher' %}
+                    <a href="{{url_for('add_question', user_id=user.account_id, test_id=test.test_id) }}">Add Questions</a>
+                {% endif %}
+
+                {% if user.role == 'student' and test.published %}
+                    <a href="{{ url_for('take_test', student_id=user.account_id, test_id=test.test_id) }}">Take Test</a>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
-{%endblock%}
+{%endblock%} 

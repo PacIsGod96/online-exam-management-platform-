@@ -1,6 +1,6 @@
 {%extends "base.html"%}
 
-{% block title %}test taken{% endblock %}
+{% block title %}take test{% endblock %}
 
 {%block content%}
 <form method="POST" action="{{ url_for('take_test', student_id=user.account_id, test_id=test_id) }}">

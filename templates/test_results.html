@@ -1,0 +1,31 @@
+{%extends "base.html"%}
+
+{% block title %}Test Results{% endblock %}
+<form action="{{ url_for('update_marks', teacher_id=teacher['account_id'], test_id=test_id)}}">
+    <table border="1">
+        <tr>
+            <th>Student</th>
+            <th>Question</th>
+            <th>Submitted Answer</th>
+            <th>Correct Answer</th>
+            <th>Is Correct</th>
+            <th>Total Marks</th>
+        </tr>
+        {% for now in responses %}
+        <tr>
+            <td>{{ row.first_name }} {{ row.last_name }}</td>
+            <td>{{ row.question_text }}</td>
+            <td>{{ row.submitted_answer }}</td>
+            <td>{{ row.correct_answer }}</td>
+            <td>{{ row.is_correct }}</td>
+            <td>
+                <input type="number" step="0.01" name="marks_{{ row.student_id }}">
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <button type="submit">Update Marks</button>
+</form>
+{%block content%}
+
+{%endblock%}

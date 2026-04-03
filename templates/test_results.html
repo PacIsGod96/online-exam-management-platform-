@@ -1,7 +1,9 @@
 {%extends "base.html"%}
 
 {% block title %}Test Results{% endblock %}
-<form action="{{ url_for('update_marks', teacher_id=teacher['account_id'], test_id=test_id)}}">
+
+{%block content%}
+<form action="{{ url_for('update_marks', teacher_id=user['account_id'], test_id=test_id)}}" method="POST">
     <table border="1">
         <tr>
             <th>Student</th>
@@ -11,21 +13,34 @@
             <th>Is Correct</th>
             <th>Total Marks</th>
         </tr>
-        {% for now in responses %}
+        {% for r in responses %}
         <tr>
-            <td>{{ row.first_name }} {{ row.last_name }}</td>
-            <td>{{ row.question_text }}</td>
-            <td>{{ row.submitted_answer }}</td>
-            <td>{{ row.correct_answer }}</td>
-            <td>{{ row.is_correct }}</td>
+            <td>{{ r.first_name }} {{ r.last_name }}</td>
+            <td>{{ r.question_text }}</td>
+            <td>{{ r.submitted_answer }}</td>
             <td>
-                <input type="number" step="0.01" name="marks_{{ row.student_id }}">
+                {% if r.question_type == 'mcq' %}
+                    {{ r.correct_answer}}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+            <td>
+                {% if r.question_type == 'MCQ' %}
+                    {{ r.is_correct }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                <input type="number" step="0.01" name="marks_{{ r.student_id }}_{{ r.question_id }}">
+            </td>
+            <td>
+                {{ scores.get(r.student_id, 0) }}
             </td>
         </tr>
         {% endfor %}
     </table>
     <button type="submit">Update Marks</button>
 </form>
-{%block content%}
-
 {%endblock%}

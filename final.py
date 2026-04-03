@@ -24,11 +24,11 @@ def register_post():
     role_id = request.form['role_id']
 
     if role == "student":
-        teacher_id = role_id
-        student_id = None
-    else:
         student_id = role_id
         teacher_id = None
+    else:
+        teacher_id = role_id
+        student_id = None
     
     sql = text("""
         INSERT INTO accounts
@@ -412,40 +412,66 @@ def all_tests(user_id):
 
     return render_template("all_tests.html", user=user, tests=tests, taken_tests=taken_tests)
 
-@app.route('/test_results/<int:teacher_id>/<int:test_id>', methods=['Get'])
+@app.route('/test_results/<int:teacher_id>/<int:test_id>', methods=['GET'])
 def view_test_results(teacher_id, test_id):
+
+    user = conn.execute(
+        text("SELECT * FROM accounts WHERE account_id = :id"),
+        {"id": teacher_id}
+    ).mappings().fetchone()
+
     responses = conn.execute(
         text("""
             SELECT sa.student_id, a.first_name, a.last_name,
-            sa.question_id, q.question_text, sa.submitted_answer,
+            sa.question_id, q.question_text, q.question_type,
+            sa.submitted_answer,
             a2.answer_text AS correct_answer, sa.is_correct, sa.points_earned
             FROM StudentAnswers sa
             JOIN accounts a ON sa.student_id = a.account_id
             JOIN questions q ON sa.question_id = q.question_id
             LEFT JOIN answers a2 ON sa.answer_id = a2.answer_id
+            WHERE sa.test_id = :tid
         """), {"tid": test_id}
     ).mappings().fetchall()
 
-    print(responses)
+    total_scores = conn.execute(
+        text("""
+            SELECT student_id, SUM(points_earned) AS total_score
+            FROM StudentAnswers
+            WHERE test_id = :tid
+            GROUP BY student_id
+        """), {"tid": test_id}
+    ).mappings().fetchall()
 
-    return render_template("test_results.html", responses=responses, test_id=test_id)
+    scores_dict = {row['student_id']: row['total_score'] for row in total_scores}
+
+    return render_template("test_results.html",user=user ,responses=responses, test_id=test_id, scores=scores_dict)
 
 @app.route('/update_marks/<int:teacher_id>/<int:test_id>', methods=['POST'])
 def update_marks(teacher_id, test_id):
     for key in request.form:
-        if key.startwith("marks_"):
-            student_id = int(key.split("_")[1])
-            total_marks = float(request.form[key])
+        if key.startswith("marks_"):
+            parts = key.split("_")
+            student_id = int(parts[1])
+            question_id = int(parts[2])
+            value = request.form[key]
+
+            if value.strip() == "":
+                continue
+
+            total_marks = float(value)
 
             conn.execute(
                 text("""
                     UPDATE StudentAnswers
                     SET points_earned = :marks
-                    WHERE student_id = :sid AND test_is = :tid
-                """), {"marks": total_marks, "sid": student_id, "tid": test_id}
+                    WHERE student_id = :sid AND test_id = :tid AND question_id = :qid
+                """), {"marks": total_marks, "sid": student_id, "tid": test_id, "qid": question_id}
             )
+
     conn.commit()
-    return redirect(url_for('test_results', teacher_id=teacher_id, test_id=test_id))
+
+    return redirect(url_for('view_test_results', teacher_id=teacher_id, test_id=test_id))
 
 if __name__ == '__main__':
     app.run(debug=True)

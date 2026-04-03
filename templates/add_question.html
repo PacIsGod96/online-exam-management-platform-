@@ -5,17 +5,42 @@
 {% block content %}
 <h1>Add Open-Ended Questions</h1>
 
-<form action="{{ url_for('add_question', user_id=user['account_id']) }}" method="POST">
-    <label>Test ID:</label><br>
-    <input type="number" name="test_id" placeholder="Enter Test ID" required><br><br>
+<form action="{{ url_for('add_question', user_id=user.account_id, test_id=test_id) }}" method="POST">
 
     <label>Question Text:</label><br>
+    <select name="question_type" id="question_type" required>
+        <option value="Short Answer">Short Answer</option>
+        <option value="MCQ">Multiple Choice</option>
+        <option value="True/False">True/False</option>
+    </select><br><br>
+
+    <label>Question Text:</label>
     <textarea name="question_text" rows="4" cols="50" placeholder="Enter your question" required></textarea><br><br>
 
     <label>Points:</label><br>
     <input type="number" name="points" min="1" required><br><br>
 
+    <div id="mcq_answers">
+        <h2>Add Answers (for MCQ)</h2>
+        <label>Answer Text:</label>
+        <input type="text" name="answer_text_1" placeholder="Answer 1"><br>
+        <input type="checkbox" name="is_correct_1"> Correct<br><br>
+
+        <input type="text" name="answer_text_2" placeholder="Answer 2"><br>
+        <input type="checkbox" name="is_correct_2"> Correct<br><br>
+
+        <input type="text" name="answer_text_3" placeholder="Answer 3"><br>
+        <input type="checkbox" name="is_correct_3"> Correct<br><br>
+
+        <input type="text" name="answer_text_4" placeholder="Answer 4"><br>
+        <input type="checkbox" name="is_correct_4"> Correct<br><br>
+    </div>
+
     <button type="submit">Add Question</button>
+</form>
+
+<form action="{{ url_for('publish_test', user_id=user.account_id, test_id=test_id)}}" method="POST">
+    <button type="submit">Publish Test</button>
 </form>
 
 <h2>Existing Questions for this Test</h2>

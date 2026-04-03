@@ -101,12 +101,34 @@ def all_acount(user_id):
 
 @app.route('/test_page/<int:user_id>',methods =["GET"])
 def test_page(user_id):
-    user = conn.execute(
-    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
-    {"id": user_id}
-    ).mappings().fetchone()
-    result = conn.execute(text("SELECT * FROM tests ORDER BY test_id DESC")).fetchall()
-    return render_template("test_page.html",tests=result,user=user)
+    try:
+        user = conn.execute(
+        text("SELECT account_id, role, first_name, last_name FROM accounts WHERE account_id = :id"),
+        {"id": user_id}
+        ).mappings().fetchone()
+
+        teacher_name = user['first_name'] + " " + user['last_name']
+
+        if user['role'] == 'teacher':
+            tests = conn.execute(
+                text("SELECT * FROM tests ORDER BY test_id DESC")
+            ).mappings().fetchall()
+        else:
+            tests = conn.execute(
+                text("SELECT * FROM tests WHERE published = TRUE ORDER BY test_id DESC")
+            ).mappings().fetchall()
+
+            taken_tests = [row['test_id'] for row in conn.execute(
+                text("SELECT test_id FROM StudentAnswers WHERE student_id=:sid"),
+                {"sid": user_id}
+            ).fetchall()]
+
+        return render_template("test_page.html", tests=tests, user=user, taken_tests=taken_tests if user['role']=='student' else [])
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Error: {e}", 500
 
 
 
@@ -129,25 +151,39 @@ def test_taken(user_id):
 @app.route('/test_create/<int:user_id>',methods=["GET", "POST"])
 def test_create(user_id):
     user = conn.execute(
-    text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
+    text("SELECT account_id, role, first_name, last_name FROM accounts WHERE account_id = :id"),
     {"id": user_id}
     ).mappings().fetchone()
     if request.method == "POST":
+        test_id = int(request.form["test_id"])
         title = request.form["title"]
         test_disc = request.form ["test_disc"]
         created_by = request.form ["created_by"]
+        teacher_name = user['first_name'] + " " + user['last_name']
 
+    with engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO tests (title, test_disc, created_by) "
-                "VALUES (:title, :test_disc, :created_by)"
+                "INSERT INTO tests (test_id, title, test_disc, created_by) "
+                "VALUES (:test_id, :title, :test_disc, :created_by)"
             ),
-            {"title": title, "test_disc": test_disc, "created_by": created_by}
+            {"test_id": test_id, "title": title, "test_disc": test_disc, "created_by": created_by}
         )
+
+        conn.commit()
+
+
     return render_template("test_create.html",user=user)
 
 
-
+@app.route('/publish_test/<int:user_id>/<int:test_id>', methods=["POST"])
+def publish_test(user_id, test_id):
+    conn.execute(
+        text("UPDATE tests SET published = TRUE WHERE test_id = :tid"),
+        {"tid": test_id}
+    )
+    conn.commit()
+    return redirect(url_for('test_page', user_id=user_id))
 
 
 @app.route('/delete/<int:user_id>', methods =["POST"])
@@ -173,23 +209,26 @@ def logout():
 
 
 
-@app.route('/add_question/<int:user_id>', methods=['GET', 'POST'])
-def add_question(user_id):
+@app.route('/add_question/<int:user_id>/<int:test_id>', methods=['GET', 'POST'])
+def add_question(user_id, test_id):
     user = conn.execute(
         text("SELECT account_id, role FROM accounts WHERE account_id = :id"),
         {"id": user_id}
     ).mappings().fetchone()
 
+    print("DEBUG: user =", user)
+    print("DEBUG: test_id =", test_id)
+
     questions = []
 
     if request.method == "POST":
-        test_id = int(request.form['test_id'])
         question_text = request.form['question_text']
         points = int(request.form['points'])
+        question_type = request.form['question_type']
 
         result = conn.execute(
-            text("INSERT INTO questions (question_text, question_type, points) VALUES (:text, 'Short Answer', :points)"),
-            {"text": question_text, "points": points}
+            text("INSERT INTO questions (question_text, question_type, points) VALUES (:text, :qtype, :points)"),
+            {"text": question_text, "qtype": question_type, "points": points}
         )
         question_id = result.lastrowid
 
@@ -197,6 +236,16 @@ def add_question(user_id):
             text("INSERT INTO test_questions (test_id, question_id) VALUES (:test_id, :question_id)"),
             {"test_id": test_id, "question_id": question_id}
         )
+
+        if question_type == "MCQ":
+            for i in range(1, 5): 
+                answer_text = request.form.get(f"answer_text_{i}")
+                is_correct = 1 if request.form.get(f"is_correct_{i}") else 0
+                if answer_text:
+                    conn.execute(
+                        text("INSERT INTO answers (question_id, answer_text, is_correct) VALUES (:qid, :text, :correct)"),
+                        {"qid": question_id, "text": answer_text, "correct": is_correct}
+                    )
 
         questions = conn.execute(
             text("""SELECT q.* FROM questions q
@@ -206,8 +255,148 @@ def add_question(user_id):
             {"test_id": test_id}
         ).fetchall()
 
-    return render_template("add_question.html", user=user, questions=questions)
+        conn.commit()
 
+    return render_template("add_question.html", user=user, questions=questions, test_id=test_id)
+
+@app.route('/take_test/<int:student_id>/<int:test_id>', methods=['GET','POST'])
+def take_test(student_id, test_id):
+    user = conn.execute(
+        text("SELECT * FROM accounts WHERE account_id = :id"),
+        {"id": student_id}
+    ).mappings().fetchone()
+
+    already_taken = conn.execute(
+        text("SELECT * FROM StudentAnswers WHERE student_id=:sid AND test_id=:tid"),
+        {"sid": student_id, "tid": test_id}
+    ).fetchone()
+    
+    if already_taken:
+        return "You have already taken this test.", 403
+    
+    if request.method == "POST":
+        for  key in request.form:
+            if key.startswith("q_"):
+                qid = int(key.split("_")[1])
+                value = request.form[key]
+
+                if value.isdigit():
+                    answer_id = int(value)
+                    submitted_answer = None
+                    is_correct = conn.execute(
+                        text("SELECT is_correct FROM ansers WHERE answer_id=:aid"),
+                        {"aid": answer_id}
+                    ).scalar()
+                else:
+                    answer_id = None
+                    submitted_answer = value
+                    is_correct = 0
+
+                conn.execute(
+                    text("""
+                        INSERT INTO StudentAnswers
+                        (student_id, test_id, question_id, answer_id, submitted_answer, is_correct)
+                        Values (:sid, :tid, :qid, :aid, :sub_ans, :correct)
+                    """),
+                    {"sid": student_id, "tid":test_id, "qid": qid, "aid": answer_id, "sub_ans": submitted_answer, "correct": is_correct}
+                )
+        conn.commit()
+        return redirect(url_for('test_taken', user_id=student_id))
+    rows = conn.execute(
+        text("""
+            SELECT q.question_id, q.question_text, q.question_type, q.points, a.answer_id, a.answer_text
+            FROM test_questions tq
+            JOIN questions q ON tq.question_id = q.question_id
+            LEFT JOIN answers a ON q.question_id = a.question_id
+            WHERE tq.test_id=:tid
+            ORDER BY tq.question_order
+        """), {"tid": test_id}
+    ).fetchall()
+
+    questions = {}
+
+    for row in rows:
+        qid = row.question_id
+        if qid not in questions:
+            questions[qid] = {
+                "text": row.question_text,
+                "type": row.question_type,
+                "answers": []
+            }
+        if row.answer_id:
+            questions[qid]["answers"].append({"id":row.answer_id, "text": row.answer_text})
+    return render_template("take_test.html", user=user, test_id=test_id, questions=questions)
+
+@app.route('/test_taken/<int:user_id>')
+def test_results(user_id):
+    user = conn.execute(
+        text("SELECT * FROM accounts WHERE account_id = :id"),
+        {"id": user_id}
+    ).mappings().fetchone()
+
+    return render_template("test_taken.html", user=user)
+    
+@app.route('/submit_test/<int:user_id>/<int:test_id>', methods=['POST'])
+def submit_test(user_id, test_id):
+    for key in request.form:
+        if key.startwith("q_"):
+            question_id = int(key.split("_")[1])
+            value = request.form[key]
+
+            answer_id = None 
+            submitted_text = None
+
+            if value.isdigit():
+                answer_id = int(value)
+            else: 
+                submitted_text = value
+
+            is_correct = 0
+            if answer_id:
+                result = conn.exeute(text("""
+                    SELECT is_correct FROM answers
+                    WHERE answer_id = :aid
+                """), {"aid": answer_id}).fetchnone()
+
+                if result and result[0] == 1:
+                    is_correct = 1
+
+            conn.execute(text("""
+                INSERT INTO StudentAnswers
+                (student_id, test_id, question_id, answer_id, submitted_id, is_correct)
+                VALUES  (:student_id, :test_id, :question_id, :answer_id, :submitted_answer, :is_correct)
+            """), {
+                "student_id": user_id,
+                "test_id": test_id,
+                "question_id": question_id,
+                "answer_id": answer_id,
+                "submitted_answer": submitted_text,
+                "is_correct": is_correct
+            })
+        conn.commit()
+
+        return redirect(url_for('test_taken', user_id=user_id))
+    
+@app.route('/tests/,int:user_id')
+def all_tests(user_id):
+    user = conn.execute(
+        text("SELECT account_id, role, FROM accounts WHERE account_id = :id"),
+        {"id": user_id}
+    ).mappings().fetchone()
+
+    tests = conn.execute(
+        text("SELECT * FROM tests WHERE published = TRUE ORDER BY test_id DESC")
+    ).mappings().fetchall()
+
+    taken_tests = set()
+    if user['role'] == 'student':
+        rows = conn.execute(
+            text("SELECT DISTINCT test_id FROM StudentAnswers WHERE student_id = :sid"),
+            {"sid": user_id}
+        ).fetchall()
+        taken_tests = {row.test_id for row in rows}
+
+    return render_template("all_tests.html", user=user, tests=tests, taken_tests=taken_tests)
 
 if __name__ == '__main__':
     app.run(debug=True)

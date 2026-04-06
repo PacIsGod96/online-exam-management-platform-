@@ -25,6 +25,7 @@
             <td>
                 {% if user.role == 'teacher' %}
                     <a href="{{url_for('add_question', user_id=user.account_id, test_id=test.test_id) }}">Add Questions</a>
+                    <a href="{{ url_for('view_test_results', teacher_id=user.account_id, test_id=test.test_id)}}">View Test Results</a>
                 {% endif %}
 
                 {% if user.role == 'student' and test.published %}

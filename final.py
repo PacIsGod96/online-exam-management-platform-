@@ -24,11 +24,11 @@ def register_post():
     role_id = request.form['role_id']
 
     if role == "student":
-        teacher_id = role_id
-        student_id = None
-    else:
         student_id = role_id
         teacher_id = None
+    else:
+        teacher_id = role_id
+        student_id = None
     
     sql = text("""
         INSERT INTO accounts
@@ -121,7 +121,7 @@ def test_page(user_id):
             taken_tests = [row['test_id'] for row in conn.execute(
                 text("SELECT test_id FROM StudentAnswers WHERE student_id=:sid"),
                 {"sid": user_id}
-            ).fetchall()]
+            ).mappings().fetchall()]
 
         return render_template("test_page.html", tests=tests, user=user, taken_tests=taken_tests if user['role']=='student' else [])
     
@@ -155,22 +155,21 @@ def test_create(user_id):
     {"id": user_id}
     ).mappings().fetchone()
     if request.method == "POST":
-        test_id = int(request.form["test_id"])
         title = request.form["title"]
         test_disc = request.form ["test_disc"]
         created_by = request.form ["created_by"]
         teacher_name = user['first_name'] + " " + user['last_name']
 
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                "INSERT INTO tests (test_id, title, test_disc, created_by) "
-                "VALUES (:test_id, :title, :test_disc, :created_by)"
-            ),
-            {"test_id": test_id, "title": title, "test_disc": test_disc, "created_by": created_by}
-        )
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO tests (title, test_disc, created_by) "
+                    "VALUES (:title, :test_disc, :created_by)"
+                ),
+                {"title": title, "test_disc": test_disc, "created_by": created_by}
+            )
 
-        conn.commit()
+        return redirect(url_for('test_page', user_id=user_id))
 
 
     return render_template("test_create.html",user=user)
@@ -275,18 +274,30 @@ def take_test(student_id, test_id):
         return "You have already taken this test.", 403
     
     if request.method == "POST":
-        for  key in request.form:
+        for key in request.form:
             if key.startswith("q_"):
                 qid = int(key.split("_")[1])
                 value = request.form[key]
+                
+                qtype = conn.execute(
+                    text("SELECT question_type FROM questions WHERE question_id=:qid"),
+                    {"qid": qid}
+                ).scalar()
 
-                if value.isdigit():
+                if qtype == "MCQ" and value.isdigit():
                     answer_id = int(value)
                     submitted_answer = None
-                    is_correct = conn.execute(
-                        text("SELECT is_correct FROM ansers WHERE answer_id=:aid"),
+
+                    result = conn.execute(
+                        text("SELECT is_correct FROM answers WHERE answer_id=:aid"),
                         {"aid": answer_id}
-                    ).scalar()
+                    ).fetchone()
+                    
+                    if result:
+                        is_correct = result[0]
+                    else: 
+                        answer_id = None
+                        is_correct = 0
                 else:
                     answer_id = None
                     submitted_answer = value
@@ -325,6 +336,7 @@ def take_test(student_id, test_id):
             }
         if row.answer_id:
             questions[qid]["answers"].append({"id":row.answer_id, "text": row.answer_text})
+
     return render_template("take_test.html", user=user, test_id=test_id, questions=questions)
 
 @app.route('/test_taken/<int:user_id>')
@@ -353,7 +365,7 @@ def submit_test(user_id, test_id):
 
             is_correct = 0
             if answer_id:
-                result = conn.exeute(text("""
+                result = conn.execute(text("""
                     SELECT is_correct FROM answers
                     WHERE answer_id = :aid
                 """), {"aid": answer_id}).fetchnone()
@@ -394,9 +406,72 @@ def all_tests(user_id):
             text("SELECT DISTINCT test_id FROM StudentAnswers WHERE student_id = :sid"),
             {"sid": user_id}
         ).fetchall()
-        taken_tests = {row.test_id for row in rows}
+        taken_tests = {row['test_id'] for row in rows}
+
+        tests = [t for t in tests if t['test_id'] not in taken_tests]
 
     return render_template("all_tests.html", user=user, tests=tests, taken_tests=taken_tests)
+
+@app.route('/test_results/<int:teacher_id>/<int:test_id>', methods=['GET'])
+def view_test_results(teacher_id, test_id):
+
+    user = conn.execute(
+        text("SELECT * FROM accounts WHERE account_id = :id"),
+        {"id": teacher_id}
+    ).mappings().fetchone()
+
+    responses = conn.execute(
+        text("""
+            SELECT sa.student_id, a.first_name, a.last_name,
+            sa.question_id, q.question_text, q.question_type,
+            sa.submitted_answer,
+            a2.answer_text AS correct_answer, sa.is_correct, sa.points_earned
+            FROM StudentAnswers sa
+            JOIN accounts a ON sa.student_id = a.account_id
+            JOIN questions q ON sa.question_id = q.question_id
+            LEFT JOIN answers a2 ON sa.answer_id = a2.answer_id
+            WHERE sa.test_id = :tid
+        """), {"tid": test_id}
+    ).mappings().fetchall()
+
+    total_scores = conn.execute(
+        text("""
+            SELECT student_id, SUM(points_earned) AS total_score
+            FROM StudentAnswers
+            WHERE test_id = :tid
+            GROUP BY student_id
+        """), {"tid": test_id}
+    ).mappings().fetchall()
+
+    scores_dict = {row['student_id']: row['total_score'] for row in total_scores} 
+
+    return render_template("test_results.html",user=user ,responses=responses, test_id=test_id, scores=scores_dict)
+
+@app.route('/update_marks/<int:teacher_id>/<int:test_id>', methods=['POST'])
+def update_marks(teacher_id, test_id):
+    for key in request.form:
+        if key.startswith("marks_"):
+            parts = key.split("_")
+            student_id = int(parts[1])
+            question_id = int(parts[2])
+            value = request.form[key]
+
+            if value.strip() == "":
+                continue
+
+            total_marks = float(value)
+
+            conn.execute(
+                text("""
+                    UPDATE StudentAnswers
+                    SET points_earned = :marks
+                    WHERE student_id = :sid AND test_id = :tid AND question_id = :qid
+                """), {"marks": total_marks, "sid": student_id, "tid": test_id, "qid": question_id}
+            )
+
+    conn.commit()
+
+    return redirect(url_for('view_test_results', teacher_id=teacher_id, test_id=test_id))
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -443,7 +443,7 @@ def view_test_results(teacher_id, test_id):
         """), {"tid": test_id}
     ).mappings().fetchall()
 
-    scores_dict = {row['student_id']: row['total_score'] for row in total_scores}
+    scores_dict = {row['student_id']: row['total_score'] for row in total_scores} 
 
     return render_template("test_results.html",user=user ,responses=responses, test_id=test_id, scores=scores_dict)
 

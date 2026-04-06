@@ -14,8 +14,8 @@
   <ul class="barItem">
     {% if user %}
     {% if user['role'] == 'teacher' %}
-        <li><a href="{{ url_for('all_acount', user_id=user['account_id']) }}">All Accounts</a></li>
-        <li><a href="{{ url_for('test_create', user_id=user['account_id']) }}">Test Create</a></li>
+      <li><a href="{{ url_for('all_acount', user_id=user['account_id']) }}">All Accounts</a></li>
+      <li><a href="{{ url_for('test_create', user_id=user['account_id']) }}">Test Create</a></li>
     {% endif %}
     <li><a href="{{ url_for('test_page', user_id=user['account_id']) }}">Test Page</a></li>
     <li><a href="{{ url_for('logout') }}">Logout</a></li>
